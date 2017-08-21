@@ -1,0 +1,337 @@
+ <!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>
+            OGC GeoPackage in practice: Implementing a new OGC
+            specification with open-source tools
+        </title>
+
+        <link rel="stylesheet"
+              href="libs/reveal.js-3.1.0/css/reveal.css">
+        <link rel="stylesheet"
+              href="libs/reveal.js-3.1.0/css/theme/solarized.css"
+              id="theme">
+        <link rel="stylesheet"
+              href="libs/reveal.js-3.1.0/lib/css/zenburn.css"
+              id="theme">
+        <script>
+            if(window.location.search.match(/print-pdf/gi))
+            {
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.type = 'text/css';
+                link.href = 'libs/reveal.js-3.1.0/css/print/pdf.css';
+                document.getElementsByTagName('head')[0].appendChild(link);
+            }
+        </script>
+        <style>
+            #cssTable th
+            {
+                text-align: center;
+                vertical-align: middle;
+            }
+            #cssTable td
+            {
+                text-align: center;
+                vertical-align: middle;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="reveal">
+            <div class="slides">
+                <section data-markdown data-separator="---" id="intro">
+                    <script type="text/template">
+                        #FOSS4G Seoul 2015
+                        OGC GeoPackage in practice: Implementing a new OGC
+                        specification with open-source tools
+                        ####By Steven D. Lander, RG<span style="text-transform: lowercase;">i</span> <sup>&#174;</sup>
+                        ---
+                        #About me
+
+                        * https://github.com/stevendlander
+                        * Software Engineer @ [RGi](http://rgi-corp.com/)
+                        * Experienced in caching and storing large raster images
+                        * Early implementer of the [OGC
+                        GeoPackage Encoding Standard](http://www.opengeospatial.org/standards/geopackage)
+                        * Work in Java, Android, Python, and some others
+                        ---
+                        #About our projects
+
+                        * [Software to Aggregate Geospatial Data (SWAGD)](https://github.com/GitHubRGI/swagd)
+                            * Full implementation of the GeoPackage raster spec
+                            * Java 1.8
+                            * Uses GDAL 1.11.1
+                        * [geopackage-python](https://github.com/GitHubRGI/geopackage-python)
+                            * Na&#239;ve implementation of the GeoPackage raster spec
+                            * Python 2.7 & 3.4
+                            * Improvements to gdal2tiles.py along with separate script to package tiles
+                        ---
+                        ##Other presentations at FOSS4G Seoul
+
+                        * <em>Geopackage and how open source is changing the way
+                          governments think about standards</em>
+                          * (2015/09/16) Nathan Frantz, Ben Tuttle, 11:25
+                          PT1-05
+
+                        * <em>Building Continuous Integration within your open
+                        source project</em>
+                          * (2015/09/18) Steven Lander, 11:25 PT7-09
+                    </script>
+                </section>
+
+                <section data-markdown data-separator="---" id="overview">
+                    <script type="text/template">
+                        ## At a glance
+
+                        * What is the GeoPackage Encoding Standard?
+                        * Software to Aggregate Geospatial Data (SWAGD)
+                        * Our approach to the implementation of GeoPackage
+                        * What we learned building the reference
+                        implementation
+                    </script>
+                </section>
+
+                <section data-markdown data-separator="---" id="problems">
+                    <script type="text/template">
+                        ##What is the GeoPackage Encoding Standard?
+
+                        A set of conventions for storing data in a SQLite
+                        database
+
+                        * vector features
+                        * tile matrix sets of imagery and raster maps at various scales
+                        * schema
+                        * metadata
+                        * extensions
+
+                        Note:
+                        Mention containing different types of data, table of
+                        contents, and spatial reference systems
+
+                        Of these listed, we focused on supporting imagery,
+                        schema, and extensions.  Vector support is forthcoming.
+                        ---
+                        <img data-src="resources/xkcdStandards.png" style="border:none; background:none; box-shadow:none;">
+                    </script>
+                </section>
+
+                <section id="existingTech">
+                    <h2>Existing technology</h2>
+
+                    <table class="reveal" id="cssTable">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Tile sets</th>
+                                <th>Vector</th>
+                                <th>Schema</th>
+                                <th>Metadata</th>
+                                <th>Extensions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Shapefile</td>
+                                <td></td>
+                                <td>&#x2713;</td>
+                                <td></td>
+                                <td>&#x2713;</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>KML</td>
+                                <td>&#x2713;</td>
+                                <td>&#x2713;</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>GeoJSON</td>
+                                <td></td>
+                                <td>&#x2713;</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>MBTiles</td>
+                                <td>&#x2713;*</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <section data-markdown data-separator="---" id="implementations">
+                    <script type="text/template">
+                        ##Community implementations
+
+                        * GDAL
+                            * Features in 1.11.0, raster tiles in 2.0
+                        * GeoServer
+                            * Community supported plugin
+                        * SpatiaLite
+                            * Version 4.2.0
+                        * ESRI
+                            * Feature support, raster support forthcoming
+                        * DigitalGlobe
+                            * Export imagery to raster GeoPackage*
+
+                        Note:
+                        Weight behind the spec, other adopters in the wild
+                    </script>
+                </section>
+
+                <section data-markdown data-separator="---" id="swagd">
+                    <script type="text/template">
+                        ##Our approach to the implementation of GeoPackage:
+                        Software to Aggregate Geospatial Data (SWAGD)
+                        ---
+                        ##Overview
+
+                        * Create an API from which other developers could pick
+                        and choose the functionality they need
+                        * Build an UI around the API to demonstrate
+                        * Java 1.8 with 1.6 backport
+                        ---
+                        ##Core API
+
+                        * Common - Geospatial functionality dependency
+                        * DataStore - Tile store manipulation classes
+                        * Gdal2Tiles - Creates tiles, heavily influenced by
+                        GDAL python functionality
+                        * GeoPackage - Classes and validation for creating and
+                        reading GeoPackages
+                        * NetworkExtension - GeoPackage extension for
+                        supporting networks of different kinds
+                        ---
+                        ##Interoperability support
+
+                        * GeoPackage verification component
+                            * Each opened GeoPackage is verified to be
+                            specification compliant
+                            * Made into a separate verification program
+                        * Flexibility of the JVM
+                        * Outputs Web Mercator (3857), Global Geodetic (4326)\*,
+                        and Global Mercator (3395)\*
+                        ---
+                        ##Reference UI
+
+                        * Swing based UI with workflow buttons for tiling,
+                        packaging, and viewing
+                        * JMapViewer handles viewing tiled imagery of all types
+                        * Future UI redesign will use JavaFX
+                        ---
+                        <img data-src="resources/swagd.png" style="border:none; background:none; box-shadow:none;">
+                        ---
+                        <img data-src="resources/tiling.png" style="border:none; background:none; box-shadow:none;">
+                        ---
+                        <img data-src="resources/packaging.png" style="border:none; background:none; box-shadow:none;">
+                        ---
+                        ##Verifier
+
+                        * JavaFX
+                        * Drag-n-Drop!
+                        * Tests the following in the GeoPackage Encoding
+                        Standard:
+                            * core
+                            * tiles
+                            * schema
+                            * extensions
+                            * metadata
+                        ---
+                        <img data-src="resources/verifier.png" style="border:none; background:none; box-shadow:none;">
+                        ---
+                        <img data-src="resources/verifierError.png" style="border:none; background:none; box-shadow:none;">
+                    </script>
+                </section>
+
+                <section data-markdown data-separator="---" id="lessonslearned">
+                    <script type="text/template">
+                        ##What we learned building the reference implementation
+                        ---
+                        ##Java
+
+                        * There are few choices for Java native viewing of
+                        tiled data sets
+                        * We wish we knew about JavaFX early in development
+                        * Python still tiles raster images tremendously faster
+                        than our Java implementation
+                        * Database optimization is more important than code
+                        optimization
+                            * SQLite pragma
+                            * The number of queries you process
+
+                        Note:
+                        Mention JMapViewer issues, embedding leaflet,
+                        java/python threading and multiprocessing, and sqlite
+                        pragma settings
+                        ---
+                        ##Android
+
+                        * Android Java compatibility is stuck in 1.6 (official)
+                        or 1.7 (unofficial)
+                        * Desktop development ill-suits android
+                            * SQLite implementations differ (SQLDroid)
+                            * BufferImage vs. BitmapImage
+                            * Differing testing frameworks
+                        * Issues with globally available android jar
+                        ---
+                        ##Specification issues
+
+                        * Even a verbose and precise specification can be
+                        interpreted differently by different actors
+                        * Compromises are key to adoption
+                        * Lingo can differ
+                        ---
+                        ## General
+
+                        * Think critically about who would want to use your
+                        code and how
+                        * Constrain the breadth of choices to your users where
+                        appropriate
+                    </script>
+                </section>
+
+                <section data-markdown data-separator="---" id="closing">
+                    <script type="text/template">
+                        ##Thanks
+                        <img data-src="resources/smiley.png" style="border:none; background:none; box-shadow:none;">
+                    </script>
+                </section>
+            </div>
+        </div>
+
+        <script src="libs/reveal.js-3.1.0/lib/js/head.min.js"></script>
+        <script src="libs/reveal.js-3.1.0/js/reveal.js"></script>
+
+        <script>
+
+            var deps = [
+                    { src: 'libs/reveal.js-3.1.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+                    { src: 'libs/reveal.js-3.1.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'libs/reveal.js-3.1.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'libs/reveal.js-3.1.0/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+                    { src: 'libs/reveal.js-3.1.0/plugin/notes/notes.js' }
+            ];
+
+            var defaultOptions = {
+                controls: true,
+                progress: true,
+                history: true,
+                center: true,
+                transition: 'convex',
+                dependencies: deps
+            };
+
+            Reveal.initialize(defaultOptions);
+        </script>
+    </body>
+</html>
